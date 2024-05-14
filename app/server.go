@@ -45,13 +45,16 @@ func main() {
 				fmt.Printf("invalid request line: %s\n", string(requestLine))
 				return
 			}
-			urlPath := fields[1]
+			urlPath := strings.Split(fields[1], "/")
 
-			if urlPath == "/" {
-				fmt.Printf("Url Path: %s\n", urlPath)
+			if urlPath[1] == "" {
 				conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
+			} else if urlPath[1] == "echo" {
+				m := urlPath[2]
+				res := fmt.Sprintf("HTTP/1.1 200 OK\r\n"+"Content-Type: text/plain\r\n"+"Content-Length: %d\r\n"+"\r\n"+"%s", len(m), m)
+				conn.Write([]byte(res))
+
 			} else {
-				fmt.Printf("Url Path: %s\n", urlPath)
 				conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
 			}
 
