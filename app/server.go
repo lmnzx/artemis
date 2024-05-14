@@ -40,6 +40,12 @@ func main() {
 				return
 			}
 
+			header, err := tp.ReadMIMEHeader()
+			if err != nil {
+				fmt.Println("Error reading: ", err.Error())
+				return
+			}
+
 			fields := strings.Split(string(requestLine), " ")
 			if len(fields) < 2 {
 				fmt.Printf("invalid request line: %s\n", string(requestLine))
@@ -54,6 +60,10 @@ func main() {
 				res := fmt.Sprintf("HTTP/1.1 200 OK\r\n"+"Content-Type: text/plain\r\n"+"Content-Length: %d\r\n"+"\r\n"+"%s", len(m), m)
 				conn.Write([]byte(res))
 
+			} else if urlPath[1] == "user-agent" {
+				m := header.Get("User-Agent")
+				res := fmt.Sprintf("HTTP/1.1 200 OK\r\n"+"Content-Type: text/plain\r\n"+"Content-Length: %d\r\n"+"\r\n"+"%s", len(m), m)
+				conn.Write([]byte(res))
 			} else {
 				conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
 			}
