@@ -3,16 +3,21 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"errors"
+	"flag"
 	"fmt"
 	"net"
 	"net/textproto"
 	"os"
 	"os/signal"
+	"path"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 )
+
+var directory = flag.String("directory", "", "The directory to use")
 
 type server struct {
 	wg         sync.WaitGroup
@@ -108,6 +113,27 @@ func (s *server) handleConnection(conn net.Conn) {
 		res := fmt.Sprintf("HTTP/1.1 200 OK\r\n"+"Content-Type: text/plain\r\n"+"Content-Length: %d\r\n"+"\r\n"+"%s", len(m), m)
 		conn.Write([]byte(res))
 		conn.Close()
+	} else if urlPath[1] == "files" {
+		if *directory == "" {
+			res := fmt.Sprintf("HTTP/1.1 500 INTERNAL SERVER ERROR\r\n" + "\r\n")
+			conn.Write([]byte(res))
+			conn.Close()
+			return
+		}
+		fileName := urlPath[2]
+		pathToFile := path.Join(*directory, fileName)
+		data, err := os.ReadFile(pathToFile)
+		if err != nil && errors.Is(err, os.ErrNotExist) {
+			res := fmt.Sprintf("HTTP/1.1 404 NOT FOUND\r\n" + "\r\n")
+			conn.Write([]byte(res))
+			conn.Close()
+			return
+		}
+		res := fmt.Sprintf("HTTP/1.1 200 OK\r\n"+"Content-Type: application/octet-stream\r\n"+"Content-Length: %d\r\n"+"\r\n", len(data))
+		conn.Write([]byte(res))
+		conn.Write(data)
+		conn.Close()
+
 	} else {
 		conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
 		conn.Close()
@@ -140,6 +166,8 @@ func (s *server) Stop() {
 }
 
 func main() {
+	flag.Parse()
+
 	s, err := newServer(":4221")
 	if err != nil {
 		fmt.Println("Failed to bind to port 4221")
