@@ -157,7 +157,7 @@ func (s *server) handleConnection(conn net.Conn) {
 			}
 			file.Write(requestBody[:length])
 			file.Close()
-			res := fmt.Sprintf("HTTP/1.1 201 Created\r\n")
+			res := fmt.Sprintf("HTTP/1.1 201 Created\r\n\r\n")
 			conn.Write([]byte(res))
 			conn.Close()
 		}
