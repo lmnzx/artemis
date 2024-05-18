@@ -115,7 +115,7 @@ func (s *server) handleConnection(conn net.Conn) {
 		conn.Close()
 	} else if urlPath[1] == "files" {
 		if *directory == "" {
-			res := fmt.Sprintf("HTTP/1.1 500 INTERNAL SERVER ERROR\r\n" + "\r\n")
+			res := fmt.Sprintf("HTTP/1.1 500 Internal Server Error\r\n" + "\r\n")
 			conn.Write([]byte(res))
 			conn.Close()
 			return
@@ -124,7 +124,7 @@ func (s *server) handleConnection(conn net.Conn) {
 		pathToFile := path.Join(*directory, fileName)
 		data, err := os.ReadFile(pathToFile)
 		if err != nil && errors.Is(err, os.ErrNotExist) {
-			res := fmt.Sprintf("HTTP/1.1 404 NOT FOUND\r\n" + "\r\n")
+			res := fmt.Sprintf("HTTP/1.1 404 Not Found\r\n" + "\r\n")
 			conn.Write([]byte(res))
 			conn.Close()
 			return
