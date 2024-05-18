@@ -6,11 +6,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"net/textproto"
 	"os"
 	"os/signal"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -99,6 +101,7 @@ func (s *server) handleConnection(conn net.Conn) {
 		return
 	}
 	urlPath := strings.Split(fields[1], "/")
+	method := fields[0]
 
 	if urlPath[1] == "" {
 		conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
@@ -122,17 +125,42 @@ func (s *server) handleConnection(conn net.Conn) {
 		}
 		fileName := urlPath[2]
 		pathToFile := path.Join(*directory, fileName)
-		data, err := os.ReadFile(pathToFile)
-		if err != nil && errors.Is(err, os.ErrNotExist) {
-			res := fmt.Sprintf("HTTP/1.1 404 Not Found\r\n" + "\r\n")
+		if method == "GET" {
+			data, err := os.ReadFile(pathToFile)
+			if err != nil && errors.Is(err, os.ErrNotExist) {
+				res := fmt.Sprintf("HTTP/1.1 404 Not Found\r\n" + "\r\n")
+				conn.Write([]byte(res))
+				conn.Close()
+				return
+			}
+
+			res := fmt.Sprintf("HTTP/1.1 200 OK\r\n"+"Content-Type: application/octet-stream\r\n"+"Content-Length: %d\r\n"+"\r\n", len(data))
+			conn.Write([]byte(res))
+			conn.Write(data)
+			conn.Close()
+		}
+		if method == "POST" {
+			requestBody, err := io.ReadAll(tp.R)
+			if err != nil {
+				fmt.Println("Error reading request body:", err.Error())
+				return
+			}
+			file, err := os.Create(pathToFile)
+			if err != nil {
+				fmt.Println("Error creating file:", err.Error())
+				return
+			}
+			length, err := strconv.Atoi(header["Content-Length"][0])
+			if err != nil {
+				fmt.Println("Error reading content-length:", err.Error())
+				return
+			}
+			file.Write(requestBody[:length])
+			file.Close()
+			res := fmt.Sprintf("HTTP/1.1 201 Created\r\n")
 			conn.Write([]byte(res))
 			conn.Close()
-			return
 		}
-		res := fmt.Sprintf("HTTP/1.1 200 OK\r\n"+"Content-Type: application/octet-stream\r\n"+"Content-Length: %d\r\n"+"\r\n", len(data))
-		conn.Write([]byte(res))
-		conn.Write(data)
-		conn.Close()
 
 	} else {
 		conn.Write([]byte("HTTP/1.1 404 Not Found\r\n\r\n"))
