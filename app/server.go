@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -106,7 +107,8 @@ func (s *server) handleConnection(conn net.Conn) {
 	if urlPath[1] == "" {
 		conn.Write([]byte("HTTP/1.1 200 OK\r\n\r\n"))
 	} else if urlPath[1] == "echo" {
-		if len(header["Accept-Encoding"]) > 0 && header["Accept-Encoding"][0] == "gzip" {
+		idx := slices.IndexFunc(strings.Split(header["Accept-Encoding"][0], ", "), func(c string) bool { return c == "gzip" })
+		if idx != -1 {
 			m := urlPath[2]
 			res := fmt.Sprintf("HTTP/1.1 200 OK\r\n"+"Content-Encoding: gzip\r\n"+"Content-Type: text/plain\r\n"+"Content-Length: %d\r\n"+"\r\n"+"%s", len(m), m)
 			conn.Write([]byte(res))
