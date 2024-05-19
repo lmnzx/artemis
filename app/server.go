@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"compress/gzip"
 	"errors"
 	"flag"
 	"fmt"
@@ -111,8 +112,23 @@ func (s *server) handleConnection(conn net.Conn) {
 			idx := slices.IndexFunc(strings.Split(header["Accept-Encoding"][0], ", "), func(c string) bool { return c == "gzip" })
 			if idx != -1 {
 				m := urlPath[2]
-				res := fmt.Sprintf("HTTP/1.1 200 OK\r\n"+"Content-Encoding: gzip\r\n"+"Content-Type: text/plain\r\n"+"Content-Length: %d\r\n"+"\r\n"+"%s", len(m), m)
+				gzipBytes := new(bytes.Buffer)
+				gz := gzip.NewWriter(gzipBytes)
+				if _, err := gz.Write([]byte(m)); err != nil {
+					res := fmt.Sprintf("HTTP/1.1 500 Internal Server Error\r\n" + "\r\n")
+					conn.Write([]byte(res))
+					conn.Close()
+					return
+				}
+				if err := gz.Close(); err != nil {
+					res := fmt.Sprintf("HTTP/1.1 500 Internal Server Error\r\n" + "\r\n")
+					conn.Write([]byte(res))
+					conn.Close()
+					return
+				}
+				res := fmt.Sprintf("HTTP/1.1 200 OK\r\n"+"Content-Encoding: gzip\r\n"+"Content-Type: text/plain\r\n"+"Content-Length: %d\r\n\r\n", gzipBytes.Len())
 				conn.Write([]byte(res))
+				conn.Write(gzipBytes.Bytes())
 				conn.Close()
 				return
 			}
